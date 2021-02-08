@@ -1,8 +1,12 @@
 import cv2
 import numpy as np
 import kociemba as Cube
+import serial #added for communication with arduino
 import time
 import colorama
+
+serialcomm = serial.Serial('COM4',9600)
+serialcomm.timeout = 1
 GREEN = colorama.Fore.GREEN
 GRAY = colorama.Fore.LIGHTBLACK_EX
 RESET = colorama.Fore.RESET
@@ -117,7 +121,7 @@ check_state=[]
 solution=[]
 solved=False
 
-cap=cv2.VideoCapture(0)
+cap=cv2.VideoCapture(1) #Using DroidCam for video captures instead of the built in camera
 cv2.namedWindow('frame')
 
 def rotate(side):
@@ -176,16 +180,17 @@ def solve(state):
             raw+=sign_conv[j]
     print("answer:",Cube.solve(raw))
     return Cube.solve(raw)
+    
 
-def color_detect(h,s,v):
-    # print(h,s,v)
+def color_detect(h,s,v): #Tweak the following h, s, and v values to match the lighting and camera condition
+    #print(h,s,v)
     if h < 5 and s>5 :
         return 'red'
-    elif h <10 and h>=3:
+    elif h <20 and h>=3:
         return 'orange'
-    elif h <= 25 and h>10:
+    elif h <= 40 and h>10:
         return 'yellow'
-    elif h>=70 and h<= 85 and s>100 and v<180:
+    elif h>=60 and h<= 85 and s>100 and v<180:
         return 'green'
     elif h <= 130 and s>70:
         return 'blue'
@@ -219,7 +224,9 @@ def fill_stickers(frame,stickers,sides):
         for x,y in stickers[side]:
             cv2.rectangle(frame,(x,y),(x+40,y+40),color[colors[num]],-1)
             num+=1
-
+            
+"""
+NOTE: Enable this for the solving state display on the preview window( I didn't need this for my project)
 def process(operation):
     replace={
                 "F":[rotate,'front'],
@@ -251,7 +258,7 @@ def process(operation):
         cv2.imshow('solution',preview)
         cv2.waitKey()
         cv2.putText(preview, i, (700,50), font,1,(0,0,0), 1, cv2.LINE_AA)  
-        
+"""
 if __name__=='__main__':
 
     preview = np.zeros((700,800,3), np.uint8)
@@ -260,7 +267,7 @@ if __name__=='__main__':
         hsv=[]
         current_state=[]
         ret,img=cap.read()
-        # img=cv2.flip(img,1)
+        #img=cv2.flip(img,1)
         frame = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
         mask = np.zeros(frame.shape, dtype=np.uint8)   
 
@@ -308,13 +315,44 @@ if __name__=='__main__':
                     solved=solve(state)
                     if solved:
                         operation=solved.split(' ')
-                        process(operation)
+                        #process(operation)
+                        sol = solved
+                        break
                 except:
                     print("error in side detection ,you may do not follow sequence or some color not detected well.Try again")
             else:
                 print("all side are not scanned check other window for finding which left to be scanned?")
                 print("left to scan:",6-len(set(check_state)))
+                break #added break to stop the loop and proceed to the serial command for Arduino
         cv2.imshow('preview',preview)
         cv2.imshow('frame',img[0:500,0:500])
+    
+    alg_split = sol.split() 
 
+    conv = {'R': 0, "R'": 1, 'L': 2, "L'": 3, 'U': 4, "U'": 5, 'D': 6, "D'": 7, 'F': 8, "F'": 9, 'B': 10, "B'": 11} #corresponding index for LED 8X8 Matrix Using MAX 7219 Module
+
+    alg_conv = []
+
+    for i in alg_split:
+        if i in conv:
+            alg_conv.append(conv[i]) #The case for single move eg. F, R, L, D, U, F' etc.
+        else:
+            alg_conv.append(conv[i[0]])
+            alg_conv.append(conv[i[0]]) #For double move eg. F2, R2, L2, etc.
+
+    print(sol) 
+    print(alg_conv)
+
+
+    for i in alg_conv:
+        serialcomm.write(str.encode(str(i))) #send serial command in the form of the array index for LED 8x8 Matrix 
+        print(i)
+        time.sleep(3) #delay in s calculated by the total delay in the Arduino Program itself *2 
+
+    serialcomm.close()
+    
     cv2.destroyAllWindows()
+    
+
+
+
