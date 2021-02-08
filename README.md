@@ -1,19 +1,9 @@
 # CubeSolvingScript
 
-Firstly let me tell you that i haven't used cv2.inrange() method for color detection.
+Using nicpatel963's openCV python program to detect the state of 3x3 Rubiks Cube
+Convert the generated algorithm to a light guidance using an Arduino and an LED 8x8 Matrix 
 
-To scan sides you can use keys:
-U=UP
-D=DOWN
-R=RIGHT
-L=LEFT
-F=FRONT
-B=BACK
-
-color symbols are mentioned in each center of side in preview window.
-
-as you may see GREEN will be in CENTRE.
-
-Once you get the solution window press any key to continue.
+It's not pretty but it works notheless
+LED is just a placeholder for servo/stepper motor command in the next iteration wich is a rubik's solving robot
 
 
